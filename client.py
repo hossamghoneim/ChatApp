@@ -193,7 +193,7 @@ def main(host, port):
     window.title('Chat Application {}'.format(name))
 
 
-    # List field
+    # List field_
     frm_heads = LabelFrame(window, text="    List Form    ", padx=5, pady=5)
 
     connection_list = tk.Listbox(
