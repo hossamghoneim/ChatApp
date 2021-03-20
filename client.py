@@ -6,8 +6,10 @@ import argparse
 import os
 import sys
 import tkinter as tk
+import re
+from tkinter import *
 from datetime import datetime
-
+from PIL import ImageTk, Image
 
 class Send(threading.Thread):
     """
@@ -60,6 +62,7 @@ class Receive(threading.Thread):
         self.sock = sock
         self.name = name
         self.messages = None
+        self.ChatUsers = None
 
     def run(self):
         """
@@ -72,10 +75,14 @@ class Receive(threading.Thread):
             if message:
 
                 if self.messages:
-                    self.messages.insert(tk.END, message)
-                    print('hi')
-                    print('\r{}\n{}: '.format(message, self.name), end = '')
-                
+                    if re.search("^Server:", message):
+                        self.ChatUsers.insert(tk.END, message)
+                        print('hi')
+                        print('\r{}\n{}: '.format(message, self.name), end='')
+                    else:
+                        self.messages.insert(tk.END, message)
+                        print('\r{}\n{}: '.format(message, self.name), end='')
+
                 else:
                     # Thread has started, but client GUI is not yet ready
                     print('\r{}\n{}: '.format(message, self.name), end = '')
@@ -104,6 +111,9 @@ class Client:
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.name = None
         self.messages = None
+
+    def returnName(self):
+        return self.name
 
     def start(self):
         """
@@ -148,7 +158,7 @@ class Client:
         """
         now = datetime.now()
         date_time = now.strftime(" (%m/%d/%Y, %H:%M:%S) ")
-        message = text_input.get() + date_time
+        message = text_input.get() + "       " + date_time
         text_input.delete(0, tk.END)
         self.messages.insert(tk.END, '{}: {}'.format(self.name, message))
 
@@ -173,32 +183,53 @@ def main(host, port):
         host (str): The IP address of the server's listening socket.
         port (int): The port number of the server's listening socket.
     """
+
     client = Client(host, port)
     receive = client.start()
 
-    window = tk.Tk()
-    window.title('Chatroom')
+    name = client.returnName()
 
-    frm_messages = tk.Frame(master=window)
+    window = tk.Tk()
+    window.title('Chat Application {}'.format(name))
+
+
+    # List field
+    frm_heads = LabelFrame(window, text="    List Form    ", padx=5, pady=5)
+
+    connection_list = tk.Listbox(
+        master=frm_heads
+    )
+    connection_list.pack(side=tk.LEFT, fill=tk.BOTH, expand=True,)
+
+    #Chat field
+    frm_messages = LabelFrame(window, text="    Chat Form    ", padx=5, pady=5)
     scrollbar = tk.Scrollbar(master=frm_messages)
+
     messages = tk.Listbox(
-        master=frm_messages, 
+        master=frm_messages,
         yscrollcommand=scrollbar.set
     )
 
+    #Adjust the scrollbar
     scrollbar.pack(side=tk.RIGHT, fill=tk.Y, expand=False)
     messages.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+
 
     client.messages = messages
     receive.messages = messages
 
-    frm_messages.grid(row=0, column=0, columnspan=2, sticky="nsew")
+    client.ChatUsers = connection_list
+    receive.ChatUsers = connection_list
+
+    frm_messages.grid(row=0, column=1, columnspan=1, sticky="nsew")
+    frm_heads.grid(row=0, column=0, sticky="nsew")
 
     frm_entry = tk.Frame(master=window)
     text_input = tk.Entry(master=frm_entry)
     text_input.pack(fill=tk.BOTH, expand=True)
     text_input.bind("<Return>", lambda x: client.send(text_input))
-    text_input.insert(0, "Your message here.")
+    text_input.insert(0, "")
 
     btn_send = tk.Button(
         master=window,
@@ -206,13 +237,13 @@ def main(host, port):
         command=lambda: client.send(text_input)
     )
 
-    frm_entry.grid(row=1, column=0, padx=10, sticky="ew")
-    btn_send.grid(row=1, column=1, pady=10, sticky="ew")
+    frm_entry.grid(row=1, column=1, padx=25, sticky="ew")
+    btn_send.grid(row=1, column=3, padx=5, pady=5)
 
     window.rowconfigure(0, minsize=500, weight=1)
     window.rowconfigure(1, minsize=50, weight=0)
-    window.columnconfigure(0, minsize=500, weight=1)
-    window.columnconfigure(1, minsize=200, weight=0)
+    window.columnconfigure(0, minsize=300, weight=1)
+    window.columnconfigure(1, minsize=500, weight=0)
 
     window.mainloop()
 
